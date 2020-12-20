@@ -1,0 +1,151 @@
+<!--
+
+   Copyright (c) 2009, 2020 Mountainminds GmbH & Co. KG and Contributors
+   This program and the accompanying materials are made available under
+   the terms of the Eclipse Public License 2.0 which is available at
+   http://www.eclipse.org/legal/epl-2.0
+
+   SPDX-License-Identifier: EPL-2.0
+
+   Contributors:
+      Marc R. Hoffmann - initial API and implementation
+-->
+<project xmlns:jacoco="antlib:org.jacoco.ant" name="Build Automation">
+	<target name="init">
+		<mkdir dir="build"/>
+		<mkdir dir="build/tests"/>
+		<mkdir dir="build/classes"/>
+		<mkdir dir="docs"/>
+		<mkdir dir="jar"/>
+		<mkdir dir="lib/copy"/>
+		<mkdir dir="build/junit-reports"/>
+		<mkdir dir="build/coverage-reports"/>
+	</target>
+
+	<!--deletes the previous project directories(build, docs) created-->
+	<target name="clean">
+		<delete dir="build"/>
+		<delete dir="build/tests"/>
+		<delete dir="build/classes"/>
+		<delete dir="docs"/>
+		<delete dir="jar"/>
+		<delete dir="lib/copy"/>
+		<delete dir="build/junit-reports"/>
+		<delete dir="build/coverage-reports"/>
+		<delete>
+			<fileset defaultexcludes="no" dir="src" includes="**/*~"/>
+		</delete>
+	</target>
+
+	<target name="copy">
+		<copy overwrite="true" todir="build">
+			<fileset dir="build/classes" includes="*.class"/>	
+		</copy>
+	</target>
+
+	<!--Ask the user for input-->
+	<target name="input">
+		<input message="Which java file do you want to build: " addproperty="input"/>
+	</target>
+
+
+	<!--compile specified java file/s-->
+	<target name="docs">
+		<javadoc packagenames="main" sourcepath="../Fantaisie-Impromptu [act4]/src/main"
+				 destdir="../Fantaisie-Impromptu [act4]/docs">
+			<fileset dir="../Fantaisie-Impromptu [act4]/src/main">
+				<include name="*.java"/>
+			</fileset>
+		</javadoc>
+	</target>
+
+	<!--makes a jar file for our compiled main-->
+	<target name="jar_comp">
+		<jar destfile="jar/Fraction.jar"
+			 basedir="src"/>
+	</target>
+
+	<!--makes a jar file for our docs-->
+	<target name="jar_docs">
+		<jar destfile="jar/docs.jar"
+			 basedir="docs"/>
+	</target>
+
+	<!--Path element location of jar files and files from build directory-->
+	<path id="classpath.tests">
+	    <pathelement location="lib/junit-4.13.1.jar"/>
+	    <pathelement location="lib/hamcrest-core-1.3.jar"/>
+	    <pathelement location="../Fantaisie-Impromptu [act4]/build"/>
+  	</path>
+
+	<!--Compile java files from main directory-->
+	<target name="compile.java" depends="clean, init">
+		<javac srcdir="../Fantaisie-Impromptu [act4]/src/main" destdir="../Fantaisie-Impromptu [act4]/build"
+			   includeantruntime="false"/>
+	</target>
+
+	<!--Compile test files from tests directory-->
+	<target name="compile.tests" depends="compile.java">
+		<javac srcdir="../Fantaisie-Impromptu [act4]/src/tests" destdir="../Fantaisie-Impromptu [act4]/build/tests"
+			   includeantruntime="false">
+			   <classpath refid="classpath.tests"/>
+	 	</javac>
+	</target>
+ 
+ 	<target name="compile" depends="compile.java, compile.tests, docs, jar_comp, jar_docs"/>
+ 	
+ 	<!--Runs the compiled tests classes using junit along with jacoco coverage-->
+	<target name="tests" depends="compile">
+		<jacoco:coverage destfile="lib/jacoco.exec">
+			<junit printsummary="yes" haltonfailure="yes" haltonerror="yes" fork="yes">
+				<formatter type="plain"/>
+				<classpath>
+					<path refid ="classpath.tests"/>
+					<pathelement location="build/classes"/>
+					<pathelement location="build/tests"/>
+				</classpath> 
+				<formatter type="plain"/>
+				<batchtest fork="yes" todir="build/junit-reports">
+					<fileset dir="src/tests">
+						<include name = "Fractiontests.java"/>
+					</fileset>
+				</batchtest>
+			</junit>
+		</jacoco:coverage>
+	</target>
+
+	<taskdef resource="org/jacoco/ant/antlib.xml" uri="antlib:org.jacoco.ant">
+		<classpath path="lib/jacocoant.jar"/>
+	</taskdef>
+
+	<!--Generages coverage report based from the previous jacoco coverage-->
+	<target name="coverage-report" depends="tests">
+        <jacoco:report>
+            <executiondata>
+                <file file="lib/jacoco.exec"/>
+            </executiondata>
+            <structure name="Jacoco Coverage Report">
+                <classfiles>
+                    <fileset dir="build/tests">
+                        <include name="*class" />
+                    </fileset>
+		            <fileset dir="build/classes">
+                        <include name="Fraction.class" />
+                    </fileset>
+                </classfiles>
+                <sourcefiles>
+                    <fileset dir="src/tests">
+                        <include name="*java"/>
+                    </fileset>
+                    <fileset dir="src/main">
+                        <include name="Fraction.java" />
+                    </fileset>
+                </sourcefiles>
+            </structure>
+
+            <html destdir="build/coverage-reports" /> 
+            <xml destfile="build/coverage-reports/tests-coverage-report.xml" />
+            <csv destfile="build/coverage-reports/tests-coverage-report.csv" />  
+        </jacoco:report>
+    </target>
+</project>
